@@ -3,46 +3,10 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"os"
 
+	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/config"
 	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/errors"
 )
-
-type Env struct {
-	NOTION_API_KEY     string
-	NOTION_DATABASE_ID string
-	NOTION_BASE_URL    string
-	NOTION_VERSION     string
-}
-
-func loadEnv() (Env, error) {
-	env := &Env{}
-	envKeys := []string{"NOTION_API_KEY", "NOTION_DATABASE_ID", "NOTION_BASE_URL", "NOTION_VERSION"}
-
-	for _, key := range envKeys {
-		value, ok := os.LookupEnv(key)
-
-		if !ok {
-			return Env{}, &errors.MissingKeyError{
-				Context: "ENV",
-				Field:   key,
-			}
-		}
-
-		switch key {
-		case "NOTION_API_KEY":
-			env.NOTION_API_KEY = value
-		case "NOTION_DATABASE_ID":
-			env.NOTION_DATABASE_ID = value
-		case "NOTION_BASE_URL":
-			env.NOTION_BASE_URL = value
-		case "NOTION_VERSION":
-			env.NOTION_VERSION = value
-		}
-	}
-
-	return *env, nil
-}
 
 type Payload struct {
 	FullName string `json:"fullName"`
@@ -82,7 +46,7 @@ func getPayload(args map[string]any) (Payload, error) {
 }
 
 func Main(args map[string]any) map[string]any {
-	env, err := loadEnv()
+	err := config.LoadEnv()
 
 	if err != nil {
 		return errors.NewErrorResponse(err.Error())
@@ -107,7 +71,7 @@ func Main(args map[string]any) map[string]any {
 	return map[string]any{
 		"body": map[string]any{
 			"payload":     payload,
-			"environment": env,
+			"environment": config.Use(),
 		},
 	}
 }
