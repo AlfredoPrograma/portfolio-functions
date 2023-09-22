@@ -3,29 +3,52 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+
+	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/errors"
 )
+
+type Env struct {
+	NOTION_API_KEY     string
+	NOTION_DATABASE_ID string
+	NOTION_BASE_URL    string
+	NOTION_VERSION     string
+}
+
+func loadEnv() (Env, error) {
+	env := &Env{}
+	envKeys := []string{"NOTION_API_KEY", "NOTION_DATABASE_ID", "NOTION_BASE_URL", "NOTION_VERSION"}
+
+	for _, key := range envKeys {
+		value, ok := os.LookupEnv(key)
+
+		if !ok {
+			return Env{}, &errors.MissingKeyError{
+				Context: "ENV",
+				Field:   key,
+			}
+		}
+
+		switch key {
+		case "NOTION_API_KEY":
+			env.NOTION_API_KEY = value
+		case "NOTION_DATABASE_ID":
+			env.NOTION_DATABASE_ID = value
+		case "NOTION_BASE_URL":
+			env.NOTION_BASE_URL = value
+		case "NOTION_VERSION":
+			env.NOTION_VERSION = value
+		}
+	}
+
+	return *env, nil
+}
 
 type Payload struct {
 	FullName string `json:"fullName"`
 	Email    string `json:"email"`
 	Subject  string `json:"subject"`
 	Message  string `json:"message"`
-}
-
-type MissingFieldError struct {
-	field string
-}
-
-func (e *MissingFieldError) Error() string {
-	return fmt.Sprintf("Missing field: %s", e.field)
-}
-
-type InvalidFieldError struct {
-	field string
-}
-
-func (e *InvalidFieldError) Error() string {
-	return fmt.Sprintf("Invalid field: %s", e.field)
 }
 
 func getPayload(args map[string]any) (Payload, error) {
@@ -35,13 +58,18 @@ func getPayload(args map[string]any) (Payload, error) {
 		_, ok := args[key]
 
 		if !ok {
-			return Payload{}, &MissingFieldError{field: key}
+			return Payload{}, &errors.MissingKeyError{
+				Context: "PAYLOAD",
+				Field:   key,
+			}
 		}
 
 		_, ok = args[key].(string)
 
 		if !ok {
-			return Payload{}, &InvalidFieldError{field: key}
+			return Payload{}, &errors.InvalidFieldError{
+				Field: key,
+			}
 		}
 	}
 
@@ -54,37 +82,32 @@ func getPayload(args map[string]any) (Payload, error) {
 }
 
 func Main(args map[string]any) map[string]any {
-	response := make(map[string]any)
+	env, err := loadEnv()
+
+	if err != nil {
+		return errors.NewErrorResponse(err.Error())
+	}
 
 	httpContext, ok := args["http"].(map[string]any)
 
 	if !ok {
-		response["body"] = map[string]any{
-			"error": "no http context",
-		}
-
-		return response
+		return errors.NewErrorResponse("No http context")
 	}
 
 	if httpContext["method"] != http.MethodPost {
-		response["body"] = map[string]any{
-			"error": "method not allowed",
-		}
-
-		return response
+		return errors.NewErrorResponse(fmt.Sprintf("Method no allowed: %s", httpContext["method"]))
 	}
 
 	payload, err := getPayload(args)
 
 	if err != nil {
-		response["body"] = map[string]any{
-			"err": err.Error(),
-		}
-
-		return response
+		return errors.NewErrorResponse(err.Error())
 	}
 
-	response["body"] = payload
-
-	return response
+	return map[string]any{
+		"body": map[string]any{
+			"payload":     payload,
+			"environment": env,
+		},
+	}
 }
