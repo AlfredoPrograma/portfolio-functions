@@ -27,6 +27,7 @@ func Main(args map[string]any) map[string]any {
 	}
 
 	notion := notion.NewClient(args)
+
 	payload, err := notion.RegisterProposal()
 
 	if err != nil {
@@ -35,8 +36,7 @@ func Main(args map[string]any) map[string]any {
 
 	return map[string]any{
 		"body": map[string]any{
-			"payload":     payload,
-			"environment": config.Use(),
+			"payload": payload,
 		},
 	}
 }

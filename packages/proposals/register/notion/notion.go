@@ -1,6 +1,11 @@
 package notion
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+
 	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/config"
 	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/errors"
 )
@@ -11,6 +16,7 @@ type Client struct {
 	databaseId string
 	version    string
 	args       map[string]any
+	httpClient *http.Client
 }
 
 func NewClient(args map[string]any) Client {
@@ -19,6 +25,7 @@ func NewClient(args map[string]any) Client {
 		baseUrl:    config.Use().NOTION_BASE_URL,
 		databaseId: config.Use().NOTION_DATABASE_ID,
 		version:    config.Use().NOTION_VERSION,
+		httpClient: &http.Client{},
 		args:       args,
 	}
 }
@@ -60,6 +67,89 @@ func getPayload(args map[string]any) (payload, error) {
 	}, nil
 }
 
-func (c *Client) RegisterProposal() (payload, error) {
-	return getPayload(c.args)
+func (c *Client) RegisterProposal() (any, error) {
+	payload, err := getPayload(c.args)
+
+	if err != nil {
+		return payload, err
+	}
+
+	notionPayload := map[string]any{
+		"parent": map[string]any{
+			"database_id": c.databaseId,
+		},
+		"properties": map[string]any{
+			"Subject": map[string]any{
+				"title": []map[string]any{
+					{
+						"text": map[string]string{
+							"content": payload.Subject,
+						},
+					},
+				},
+			},
+			"Email": map[string]any{
+				"rich_text": []map[string]any{
+					{
+						"text": map[string]string{
+							"content": payload.Email,
+						},
+					},
+				},
+			},
+			"Full Name": map[string]any{
+				"rich_text": []map[string]any{
+					{
+						"text": map[string]string{
+							"content": payload.FullName,
+						},
+					},
+				},
+			},
+			"Message": map[string]any{
+				"rich_text": []map[string]any{
+					{
+						"text": map[string]string{
+							"content": payload.Message,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	buffer := new(bytes.Buffer)
+	err = json.NewEncoder(buffer).Encode(notionPayload)
+
+	if err != nil {
+		return payload, err
+	}
+
+	endpoint := fmt.Sprintf("%s/pages", c.baseUrl)
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, buffer)
+
+	if err != nil {
+		return payload, err
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+	req.Header.Add("Notion-Version", c.version)
+	req.Header.Add("Content-Type", "application/json")
+
+	_, err = c.httpClient.Do(req)
+
+	if err != nil {
+		return payload, err
+	}
+
+	if err != nil {
+		return payload, err
+	}
+
+	return map[string]any{
+		"body": map[string]any{
+			"message": "Success",
+		},
+	}, nil
 }
