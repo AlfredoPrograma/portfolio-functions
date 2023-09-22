@@ -20,6 +20,14 @@ func (e *MissingFieldError) Error() string {
 	return fmt.Sprintf("Missing field: %s", e.field)
 }
 
+type InvalidFieldError struct {
+	field string
+}
+
+func (e *InvalidFieldError) Error() string {
+	return fmt.Sprintf("Invalid field: %s", e.field)
+}
+
 func getPayload(args map[string]any) (Payload, error) {
 	payloadKeys := []string{"fullName", "email", "subject", "message"}
 
@@ -28,6 +36,12 @@ func getPayload(args map[string]any) (Payload, error) {
 
 		if !ok {
 			return Payload{}, &MissingFieldError{field: key}
+		}
+
+		_, ok = args[key].(string)
+
+		if !ok {
+			return Payload{}, &InvalidFieldError{field: key}
 		}
 	}
 
@@ -70,9 +84,7 @@ func Main(args map[string]any) map[string]any {
 		return response
 	}
 
-	response["body"] = map[string]any{
-		"data": payload,
-	}
+	response["body"] = payload
 
 	return response
 }
