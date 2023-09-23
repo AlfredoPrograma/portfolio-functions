@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/config"
 	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/errors"
@@ -30,45 +31,53 @@ func NewClient(args map[string]any) Client {
 	}
 }
 
-type payload struct {
+type proposal struct {
 	FullName string `json:"fullName"`
 	Email    string `json:"email"`
 	Subject  string `json:"subject"`
 	Message  string `json:"message"`
 }
 
-func getPayload(args map[string]any) (payload, error) {
+func validateProposal(payload map[string]any) (proposal, error) {
 	payloadKeys := []string{"fullName", "email", "subject", "message"}
 
 	for _, key := range payloadKeys {
-		_, ok := args[key]
+		_, ok := payload[key]
 
+		// Check if some key is missing
 		if !ok {
-			return payload{}, &errors.MissingKeyError{
+			return proposal{}, &errors.MissingKeyError{
 				Context: "PAYLOAD",
 				Field:   key,
 			}
 		}
 
-		_, ok = args[key].(string)
+		fieldType := reflect.TypeOf(payload[key]).Kind()
 
-		if !ok {
-			return payload{}, &errors.InvalidFieldError{
+		// Check if some key is not a string
+		if fieldType != reflect.String {
+			return proposal{}, &errors.InvalidFieldError{
+				Field: key,
+			}
+		}
+
+		if len(payload[key].(string)) == 0 {
+			return proposal{}, &errors.EmptyFieldError{
 				Field: key,
 			}
 		}
 	}
 
-	return payload{
-		FullName: args["fullName"].(string),
-		Email:    args["email"].(string),
-		Subject:  args["subject"].(string),
-		Message:  args["message"].(string),
+	return proposal{
+		FullName: payload["fullName"].(string),
+		Email:    payload["email"].(string),
+		Subject:  payload["subject"].(string),
+		Message:  payload["message"].(string),
 	}, nil
 }
 
-func (c *Client) RegisterProposal() (any, error) {
-	payload, err := getPayload(c.args)
+func (c *Client) RegisterProposal(payload map[string]any) (any, error) {
+	data, err := validateProposal(payload)
 
 	if err != nil {
 		return payload, err
@@ -83,7 +92,7 @@ func (c *Client) RegisterProposal() (any, error) {
 				"title": []map[string]any{
 					{
 						"text": map[string]string{
-							"content": payload.Subject,
+							"content": data.Subject,
 						},
 					},
 				},
@@ -92,7 +101,7 @@ func (c *Client) RegisterProposal() (any, error) {
 				"rich_text": []map[string]any{
 					{
 						"text": map[string]string{
-							"content": payload.Email,
+							"content": data.Email,
 						},
 					},
 				},
@@ -101,7 +110,7 @@ func (c *Client) RegisterProposal() (any, error) {
 				"rich_text": []map[string]any{
 					{
 						"text": map[string]string{
-							"content": payload.FullName,
+							"content": data.FullName,
 						},
 					},
 				},
@@ -110,7 +119,7 @@ func (c *Client) RegisterProposal() (any, error) {
 				"rich_text": []map[string]any{
 					{
 						"text": map[string]string{
-							"content": payload.Message,
+							"content": data.Message,
 						},
 					},
 				},

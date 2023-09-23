@@ -13,7 +13,7 @@ func Main(args map[string]any) map[string]any {
 	err := config.LoadEnv()
 
 	if err != nil {
-		return errors.NewErrorResponse(err.Error())
+		return errors.NewErrorResponse("Error loading environment variables")
 	}
 
 	httpContext, ok := args["http"].(map[string]any)
@@ -26,12 +26,17 @@ func Main(args map[string]any) map[string]any {
 		return errors.NewErrorResponse(fmt.Sprintf("Method no allowed: %s", httpContext["method"]))
 	}
 
-	notion := notion.NewClient(args)
+	payload, ok := args["proposal"].(map[string]any)
 
-	payload, err := notion.RegisterProposal()
+	if !ok {
+		return errors.NewErrorResponse("No payload given")
+	}
+
+	notion := notion.NewClient(args)
+	_, err = notion.RegisterProposal(payload)
 
 	if err != nil {
-		return errors.NewErrorResponse(err.Error())
+		return errors.NewErrorResponse("Error registering proposal")
 	}
 
 	return map[string]any{
