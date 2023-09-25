@@ -32,8 +32,8 @@ func Main(args map[string]any) map[string]any {
 		return errors.NewErrorResponse("No payload given")
 	}
 
-	notion := notion.NewClient(args)
-	_, err = notion.RegisterProposal(payload)
+	notion := notion.NewClient()
+	page, err := notion.RegisterProposal(payload)
 
 	if err != nil {
 		return errors.NewErrorResponse("Error registering proposal")
@@ -41,7 +41,8 @@ func Main(args map[string]any) map[string]any {
 
 	return map[string]any{
 		"body": map[string]any{
-			"payload": payload,
+			"message": "Proposal registered",
+			"id":      page.ID,
 		},
 	}
 }

@@ -1,33 +1,23 @@
 package notion
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"net/http"
+	"context"
 	"reflect"
 
 	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/config"
 	"github.com/AlfredoPrograma/portfolio-functions/proposals/register/errors"
+	"github.com/jomei/notionapi"
 )
 
 type Client struct {
-	apiKey     string
-	baseUrl    string
 	databaseId string
-	version    string
-	args       map[string]any
-	httpClient *http.Client
+	api        *notionapi.Client
 }
 
-func NewClient(args map[string]any) Client {
+func NewClient() Client {
 	return Client{
-		apiKey:     config.Use().NOTION_API_KEY,
-		baseUrl:    config.Use().NOTION_BASE_URL,
+		api:        notionapi.NewClient(notionapi.Token(config.Use().NOTION_API_KEY)),
 		databaseId: config.Use().NOTION_DATABASE_ID,
-		version:    config.Use().NOTION_VERSION,
-		httpClient: &http.Client{},
-		args:       args,
 	}
 }
 
@@ -76,89 +66,63 @@ func validateProposal(payload map[string]any) (proposal, error) {
 	}, nil
 }
 
-func (c *Client) RegisterProposal(payload map[string]any) (any, error) {
+func (c *Client) RegisterProposal(payload map[string]any) (*notionapi.Page, error) {
 	data, err := validateProposal(payload)
 
 	if err != nil {
-		return payload, err
+		return nil, err
 	}
 
-	notionPayload := map[string]any{
-		"parent": map[string]any{
-			"database_id": c.databaseId,
+	page, err := c.api.Page.Create(context.Background(), &notionapi.PageCreateRequest{
+		Parent: notionapi.Parent{
+			DatabaseID: notionapi.DatabaseID(c.databaseId),
 		},
-		"properties": map[string]any{
-			"Subject": map[string]any{
-				"title": []map[string]any{
+		Properties: notionapi.Properties{
+			"Subject": notionapi.TitleProperty{
+				Title: []notionapi.RichText{
 					{
-						"text": map[string]string{
-							"content": data.Subject,
+						Text: &notionapi.Text{
+							Content: data.Subject,
 						},
 					},
 				},
 			},
-			"Email": map[string]any{
-				"rich_text": []map[string]any{
+			"Email": notionapi.RichTextProperty{
+				Type: "rich_text",
+				RichText: []notionapi.RichText{
 					{
-						"text": map[string]string{
-							"content": data.Email,
+						Text: &notionapi.Text{
+							Content: data.Email,
 						},
 					},
 				},
 			},
-			"Full Name": map[string]any{
-				"rich_text": []map[string]any{
+			"Full Name": notionapi.RichTextProperty{
+				Type: "rich_text",
+				RichText: []notionapi.RichText{
 					{
-						"text": map[string]string{
-							"content": data.FullName,
+						Text: &notionapi.Text{
+							Content: data.FullName,
 						},
 					},
 				},
 			},
-			"Message": map[string]any{
-				"rich_text": []map[string]any{
+			"Message": notionapi.RichTextProperty{
+				Type: "rich_text",
+				RichText: []notionapi.RichText{
 					{
-						"text": map[string]string{
-							"content": data.Message,
+						Text: &notionapi.Text{
+							Content: data.Message,
 						},
 					},
 				},
 			},
 		},
-	}
-
-	buffer := new(bytes.Buffer)
-	err = json.NewEncoder(buffer).Encode(notionPayload)
+	})
 
 	if err != nil {
-		return payload, err
+		return nil, err
 	}
 
-	endpoint := fmt.Sprintf("%s/pages", c.baseUrl)
-
-	req, err := http.NewRequest(http.MethodPost, endpoint, buffer)
-
-	if err != nil {
-		return payload, err
-	}
-
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
-	req.Header.Add("Notion-Version", c.version)
-	req.Header.Add("Content-Type", "application/json")
-
-	_, err = c.httpClient.Do(req)
-
-	if err != nil {
-		return payload, err
-	}
-
-	if err != nil {
-		return payload, err
-	}
-
-	return map[string]any{
-		"body": map[string]any{
-			"message": "Success",
-		},
-	}, nil
+	return page, nil
 }
