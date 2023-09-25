@@ -107,15 +107,9 @@ func (c *Client) RegisterProposal(payload map[string]any) (*notionapi.Page, erro
 					},
 				},
 			},
-			"Message": notionapi.RichTextProperty{
-				Type: "rich_text",
-				RichText: []notionapi.RichText{
-					{
-						Text: &notionapi.Text{
-							Content: data.Message,
-						},
-					},
-				},
+			"Reviewed": notionapi.CheckboxProperty{
+				Type:     "checkbox",
+				Checkbox: false,
 			},
 		},
 	})
