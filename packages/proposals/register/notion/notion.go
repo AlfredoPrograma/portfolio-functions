@@ -112,6 +112,24 @@ func (c *Client) RegisterProposal(payload map[string]any) (*notionapi.Page, erro
 				Checkbox: false,
 			},
 		},
+		Children: []notionapi.Block{
+			notionapi.ParagraphBlock{
+				BasicBlock: notionapi.BasicBlock{
+					Type:   "paragraph",
+					Object: notionapi.ObjectTypeBlock,
+				},
+				Paragraph: notionapi.Paragraph{
+					RichText: []notionapi.RichText{
+						{
+							Type: "text",
+							Text: &notionapi.Text{
+								Content: data.Message,
+							},
+						},
+					},
+				},
+			},
+		},
 	})
 
 	if err != nil {
